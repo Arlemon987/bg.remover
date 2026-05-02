@@ -1,0 +1,59 @@
+body {
+    margin: 0;
+    font-family: sans-serif;
+    background: #0f172a;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.app {
+    width: 400px;
+    text-align: center;
+}
+
+.upload-box {
+    border: 2px dashed #3b82f6;
+    padding: 30px;
+    border-radius: 12px;
+    cursor: pointer;
+}
+
+input {
+    display: none;
+}
+
+.preview {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.preview img {
+    width: 48%;
+    border-radius: 10px;
+    background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 20px 20px;
+}
+
+button {
+    margin-top: 15px;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    background: #22c55e;
+    color: white;
+    cursor: pointer;
+    width: 100%;
+}
+
+#downloadBtn {
+    display: none;
+    background: #3b82f6;
+}
+
+.loader {
+    display: none;
+    margin-top: 10px;
+}
