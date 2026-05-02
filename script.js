@@ -7,15 +7,40 @@ const downloadBtn = document.getElementById("downloadBtn");
 const removeBtn = document.getElementById("removeBtn");
 
 let file = null;
+let resultURL = null;
 
 // click upload
 dropArea.onclick = () => fileInput.click();
 
+// drag & drop support
+dropArea.ondragover = (e) => {
+    e.preventDefault();
+    dropArea.style.borderColor = "#22c55e";
+};
+
+dropArea.ondragleave = () => {
+    dropArea.style.borderColor = "#3b82f6";
+};
+
+dropArea.ondrop = (e) => {
+    e.preventDefault();
+    dropArea.style.borderColor = "#3b82f6";
+
+    file = e.dataTransfer.files[0];
+    handleFile(file);
+};
+
 // file select
 fileInput.onchange = () => {
     file = fileInput.files[0];
+    handleFile(file);
+};
 
-    if (!file) return;
+// handle preview + reset
+function handleFile(selectedFile) {
+    if (!selectedFile) return;
+
+    file = selectedFile;
 
     // preview before image
     beforeImg.src = URL.createObjectURL(file);
@@ -23,7 +48,13 @@ fileInput.onchange = () => {
     // reset output
     afterImg.src = "";
     downloadBtn.style.display = "none";
-};
+
+    // clean old URL
+    if (resultURL) {
+        URL.revokeObjectURL(resultURL);
+        resultURL = null;
+    }
+}
 
 // remove background
 removeBtn.onclick = async () => {
@@ -37,14 +68,20 @@ removeBtn.onclick = async () => {
 
     try {
         const formData = new FormData();
+
+        // 🔥 REQUIRED FIELD
         formData.append("image_file", file);
+
+        // 🔥 QUALITY SETTINGS (VERY IMPORTANT)
+        formData.append("size", "full");   // HD output
+        formData.append("format", "png");  // best quality
 
         const res = await fetch("/api/remove", {
             method: "POST",
             body: formData
         });
 
-        // 🔴 HANDLE ERROR RESPONSE
+        // error handling
         if (!res.ok) {
             const text = await res.text();
             console.error("API ERROR:", text);
@@ -54,23 +91,25 @@ removeBtn.onclick = async () => {
 
         const blob = await res.blob();
 
-        // ensure it's actually an image
         if (!blob.type.includes("image")) {
             alert("Invalid response from server");
             return;
         }
 
-        const url = URL.createObjectURL(blob);
+        // clean previous result
+        if (resultURL) URL.revokeObjectURL(resultURL);
+
+        resultURL = URL.createObjectURL(blob);
 
         // show result
-        afterImg.src = url;
+        afterImg.src = resultURL;
 
-        // show download button
+        // show download
         downloadBtn.style.display = "block";
 
         downloadBtn.onclick = () => {
             const a = document.createElement("a");
-            a.href = url;
+            a.href = resultURL;
             a.download = "no-bg.png";
             a.click();
         };
