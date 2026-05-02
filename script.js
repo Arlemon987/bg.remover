@@ -22,7 +22,7 @@ document.getElementById("removeBtn").onclick = async () => {
     loader.style.display = "block";
 
     const formData = new FormData();
-    formData.append("image", file);
+    formData.append("image_file", file);
 
     const res = await fetch("/api/remove", {
         method: "POST",
