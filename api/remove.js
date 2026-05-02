@@ -12,14 +12,14 @@ export default async function handler(req, res) {
       method: "POST",
       headers: {
         "X-Api-Key": apiKey,
-        ...req.headers, // 🔥 forward original form-data headers
+        ...req.headers,
       },
-      body: req, // 🔥 forward original body directly
+      body: req,
+      duplex: "half", // 🔥 FIX for this error
     });
 
     if (!response.ok) {
       const text = await response.text();
-      console.error(text);
       return res.status(500).send(text);
     }
 
@@ -29,7 +29,6 @@ export default async function handler(req, res) {
     res.send(Buffer.from(buffer));
 
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: err.message });
   }
 }
