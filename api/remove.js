@@ -1,6 +1,3 @@
-import formidable from "formidable";
-import fs from "fs";
-
 export const config = {
   api: {
     bodyParser: false,
@@ -10,40 +7,37 @@ export const config = {
 export default async function handler(req, res) {
   const apiKey = process.env.REMOVE_BG_API_KEY;
 
-  const form = new formidable.IncomingForm();
+  try {
+    const chunks = [];
 
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      return res.status(500).json({ error: "Upload error" });
+    for await (const chunk of req) {
+      chunks.push(chunk);
     }
 
-    const file = files.image_file;
+    const buffer = Buffer.concat(chunks);
 
-    try {
-      const response = await fetch("https://api.remove.bg/v1.0/removebg", {
-        method: "POST",
-        headers: {
-          "X-Api-Key": apiKey,
-        },
-        body: (() => {
-          const formData = new FormData();
-          formData.append("image_file", fs.createReadStream(file.filepath));
-          formData.append("size", "auto");
-          return formData;
-        })(),
-      });
+    const response = await fetch("https://api.remove.bg/v1.0/removebg", {
+      method: "POST",
+      headers: {
+        "X-Api-Key": apiKey,
+        "Content-Type": "application/octet-stream"
+      },
+      body: buffer
+    });
 
-      if (!response.ok) {
-        const text = await response.text();
-        return res.status(500).send(text);
-      }
-
-      const buffer = await response.arrayBuffer();
-
-      res.setHeader("Content-Type", "image/png");
-      res.send(Buffer.from(buffer));
-    } catch (error) {
-      res.status(500).json({ error: error.message });
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(text);
+      return res.status(500).send(text);
     }
-  });
+
+    const result = await response.arrayBuffer();
+
+    res.setHeader("Content-Type", "image/png");
+    res.send(Buffer.from(result));
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
 }
