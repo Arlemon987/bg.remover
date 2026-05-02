@@ -3,143 +3,32 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fast BG Remover (No API)</title>
-
-<style>
-body {
-    margin: 0;
-    font-family: Arial;
-    background: #0f172a;
-    color: white;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-}
-.container {
-    background: #1e293b;
-    padding: 20px;
-    border-radius: 15px;
-    text-align: center;
-    width: 360px;
-}
-canvas {
-    margin-top: 15px;
-    max-width: 100%;
-    border-radius: 10px;
-    background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 20px 20px;
-}
-button {
-    padding: 10px;
-    border: none;
-    border-radius: 8px;
-    background: #22c55e;
-    color: white;
-    cursor: pointer;
-}
-#downloadBtn {
-    display: none;
-    background: #3b82f6;
-    margin-top: 10px;
-}
-#status {
-    font-size: 13px;
-    color: #94a3b8;
-}
-</style>
+<title>AI BG Remover</title>
+<link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<div class="container">
-    <h3>Fast BG Remover</h3>
+<div class="app">
+    <h1>AI Background Remover</h1>
 
-    <input type="file" id="input" accept="image/*"><br><br>
-    <button onclick="process()">Remove Background</button>
+    <div class="upload-box" id="dropArea">
+        <p>Drag & Drop or Click to Upload</p>
+        <input type="file" id="fileInput" accept="image/*">
+    </div>
 
-    <div id="status"></div>
+    <button id="removeBtn">Remove Background</button>
 
-    <canvas id="canvas"></canvas>
+    <div class="preview">
+        <img id="before">
+        <img id="after">
+    </div>
+
+    <div class="loader" id="loader">Processing...</div>
 
     <button id="downloadBtn">Download PNG</button>
 </div>
 
-<script type="module">
-import { pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1";
-
-let segmenter;
-
-async function init() {
-    document.getElementById("status").innerText = "Loading fast model...";
-    
-    // ⚡ lighter model
-    segmenter = await pipeline("image-segmentation", "Xenova/modnet");
-    
-    document.getElementById("status").innerText = "Ready ✅";
-}
-init();
-
-window.process = async function () {
-    const file = document.getElementById("input").files[0];
-    if (!file) return alert("Upload image");
-
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
-
-    img.onload = async () => {
-        document.getElementById("status").innerText = "Processing...";
-
-        // ⚡ resize for speed
-        const MAX = 512;
-        let w = img.width, h = img.height;
-
-        if (w > MAX || h > MAX) {
-            const scale = Math.min(MAX / w, MAX / h);
-            w *= scale;
-            h *= scale;
-        }
-
-        const canvas = document.getElementById("canvas");
-        canvas.width = w;
-        canvas.height = h;
-
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, w, h);
-
-        // AI segmentation
-        const result = await segmenter(canvas);
-
-        const mask = result[0].mask.data;
-        const imageData = ctx.getImageData(0, 0, w, h);
-
-        // 🔥 LIVE PROCESS EFFECT
-        for (let i = 0; i < mask.length; i++) {
-            const alpha = mask[i] > 0.5 ? 255 : 0;
-            imageData.data[i * 4 + 3] = alpha;
-
-            // show progressive update every few pixels
-            if (i % 5000 === 0) {
-                ctx.putImageData(imageData, 0, 0);
-                await new Promise(r => setTimeout(r, 1));
-            }
-        }
-
-        ctx.putImageData(imageData, 0, 0);
-
-        const downloadBtn = document.getElementById("downloadBtn");
-        downloadBtn.style.display = "inline-block";
-
-        downloadBtn.onclick = () => {
-            const a = document.createElement("a");
-            a.href = canvas.toDataURL("image/png");
-            a.download = "transparent.png";
-            a.click();
-        };
-
-        document.getElementById("status").innerText = "Done ✅";
-    };
-};
-</script>
-
+<script src="script.js"></script>
 </body>
 </html>
