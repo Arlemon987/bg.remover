@@ -27,7 +27,7 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const text = await response.text();
-      console.error(text);
+      console.error("REMOVE.BG ERROR:", text);
       return res.status(500).send(text);
     }
 
