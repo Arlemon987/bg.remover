@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI BG Remover (No API)</title>
+<title>Fast BG Remover (No API)</title>
 
 <style>
 body {
     margin: 0;
-    font-family: Arial, sans-serif;
+    font-family: Arial;
     background: #0f172a;
     color: white;
     display: flex;
@@ -18,34 +18,32 @@ body {
 }
 .container {
     background: #1e293b;
-    padding: 25px;
+    padding: 20px;
     border-radius: 15px;
     text-align: center;
     width: 360px;
 }
+canvas {
+    margin-top: 15px;
+    max-width: 100%;
+    border-radius: 10px;
+    background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 20px 20px;
+}
 button {
-    padding: 10px 20px;
+    padding: 10px;
     border: none;
     border-radius: 8px;
     background: #22c55e;
     color: white;
     cursor: pointer;
 }
-button:hover { background: #16a34a; }
-img {
-    max-width: 100%;
-    margin-top: 15px;
-    border-radius: 10px;
-    background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 20px 20px;
-}
 #downloadBtn {
     display: none;
-    margin-top: 10px;
     background: #3b82f6;
+    margin-top: 10px;
 }
 #status {
-    font-size: 14px;
-    margin-top: 10px;
+    font-size: 13px;
     color: #94a3b8;
 }
 </style>
@@ -54,75 +52,86 @@ img {
 <body>
 
 <div class="container">
-    <h2>No API BG Remover</h2>
+    <h3>Fast BG Remover</h3>
 
     <input type="file" id="input" accept="image/*"><br><br>
     <button onclick="process()">Remove Background</button>
 
     <div id="status"></div>
 
-    <img id="output">
-    <br>
+    <canvas id="canvas"></canvas>
+
     <button id="downloadBtn">Download PNG</button>
 </div>
 
 <script type="module">
 import { pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1";
 
-let segmenter = null;
+let segmenter;
 
-async function loadModel() {
-    document.getElementById("status").innerText = "Loading AI model...";
-    segmenter = await pipeline("image-segmentation", "Xenova/u2net");
-    document.getElementById("status").innerText = "Model ready ✅";
+async function init() {
+    document.getElementById("status").innerText = "Loading fast model...";
+    
+    // ⚡ lighter model
+    segmenter = await pipeline("image-segmentation", "Xenova/modnet");
+    
+    document.getElementById("status").innerText = "Ready ✅";
 }
-
-loadModel();
+init();
 
 window.process = async function () {
     const file = document.getElementById("input").files[0];
-    if (!file) {
-        alert("Upload an image first");
-        return;
-    }
-
-    document.getElementById("status").innerText = "Processing...";
+    if (!file) return alert("Upload image");
 
     const img = new Image();
     img.src = URL.createObjectURL(file);
 
     img.onload = async () => {
-        const result = await segmenter(img);
+        document.getElementById("status").innerText = "Processing...";
 
-        const mask = result[0].mask;
+        // ⚡ resize for speed
+        const MAX = 512;
+        let w = img.width, h = img.height;
 
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
+        if (w > MAX || h > MAX) {
+            const scale = Math.min(MAX / w, MAX / h);
+            w *= scale;
+            h *= scale;
+        }
+
+        const canvas = document.getElementById("canvas");
+        canvas.width = w;
+        canvas.height = h;
 
         const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
 
-        ctx.drawImage(img, 0, 0);
+        // AI segmentation
+        const result = await segmenter(canvas);
 
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const mask = result[0].mask.data;
+        const imageData = ctx.getImageData(0, 0, w, h);
 
-        for (let i = 0; i < mask.data.length; i++) {
-            const alpha = mask.data[i] > 0.5 ? 255 : 0;
+        // 🔥 LIVE PROCESS EFFECT
+        for (let i = 0; i < mask.length; i++) {
+            const alpha = mask[i] > 0.5 ? 255 : 0;
             imageData.data[i * 4 + 3] = alpha;
+
+            // show progressive update every few pixels
+            if (i % 5000 === 0) {
+                ctx.putImageData(imageData, 0, 0);
+                await new Promise(r => setTimeout(r, 1));
+            }
         }
 
         ctx.putImageData(imageData, 0, 0);
-
-        const url = canvas.toDataURL("image/png");
-
-        document.getElementById("output").src = url;
 
         const downloadBtn = document.getElementById("downloadBtn");
         downloadBtn.style.display = "inline-block";
 
         downloadBtn.onclick = () => {
             const a = document.createElement("a");
-            a.href = url;
+            a.href = canvas.toDataURL("image/png");
             a.download = "transparent.png";
             a.click();
         };
